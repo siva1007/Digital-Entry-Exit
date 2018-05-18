@@ -23,7 +23,7 @@ import datetime
 
 
 def find_matching_id(id_dataset, embedding):
-    threshold = 0.9
+    threshold = 1.3
     min_dist = 10.0
     matching_id = None
 
@@ -151,6 +151,8 @@ def main(args):
             test_run(pnet, rnet, onet, sess, images_placeholder, phase_train_placeholder, embeddings, id_dataset, args.test_folder)
 
             cap = cv2.VideoCapture(0)
+            cap.set(4, 9600)
+            cap.set(3, 12800)
             frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             
 #            img_path = os.path.join(args.id_folder)
@@ -167,62 +169,86 @@ def main(args):
             show_fps = False
             while(True):
                 start = time.time()
-                _, frame = cap.read()
-
-                face_patches, padded_bounding_boxes, landmarks = detect_and_align.align_image(frame, pnet, rnet, onet)
-                id_dataset = id_data.get_id_data(args.id_folder[0], pnet, rnet, onet, sess, embeddings, images_placeholder, phase_train_placeholder)
-                if len(face_patches) > 0:
-                    face_patches = np.stack(face_patches)
-                    feed_dict = {images_placeholder: face_patches, phase_train_placeholder: False}
-                    embs = sess.run(embeddings, feed_dict=feed_dict)
-
-                    print('Matches in frame:')
-                    for i in range(len(embs)):
-                        bb = padded_bounding_boxes[i]
-
-                        matching_id, dist = find_matching_id(id_dataset, embs[i, :])
-                        if matching_id:
-                            print('Hi %s! Distance: %1.4f' % (matching_id, dist))
-                            
-                        else:
-                            matching_id = 'Unkown'
-                            print('Unkown! Couldn\'t fint match.')
-                            
-                            '''Make folder and store the image'''
-                            try:
-#                                os.makedirs(os.path.join(args.id_folder, str(count)))
-                                dir1 = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count)
-                                os.makedirs(dir1)
-
-                            except OSError as e:
-                                if e.errno != errno.EEXIST:
-                                    raise
-                            path_img = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count) + "\\"
-                            img_name = path_img + str(count) + '.png'
-                            cv2.imwrite(img_name, frame)
-#                            start = time.time()
-                            entry_time = datetime.datetime.fromtimestamp(start).strftime('%c')
-                            df_tmp = pd.DataFrame([[str(count), entry_time, "Still_Inside"]], columns = df.columns)
-                            count = count + 1
-                            df = df.append(df_tmp)
-                            df.to_csv(f, header = False, index = False)
+                _, frames = cap.read()
+                
+                gray = cv2.cvtColor(frames, cv2.COLOR_BGR2GRAY)
+                count_msg = "Evacuated staff: " + str(count)
+                emergency_msg = "Emergency Evacuation"
+                cv2.putText(frames, emergency_msg, (0, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (0,0,255), 3, cv2.LINE_AA)
+                
+                
+                faces = faceCascade.detectMultiScale(
+                                                     gray,
+                                                     scaleFactor= 1.05,
+                                                     minNeighbors=8,
+                                                     minSize=(55, 55),
+                                                     flags=cv2.CASCADE_SCALE_IMAGE
+                                                    )
+                imgs = []
+                for (x, y, w, h) in faces:
+                    crop_img = frames[y -50:y+h+25, x-25:x+w+25]
+                    imgs.append(crop_img)
+                
+                for frame in imgs:
+                    face_patches, padded_bounding_boxes, landmarks = detect_and_align.align_image(frame, pnet, rnet, onet)
+                    id_dataset = id_data.get_id_data(args.id_folder[0], pnet, rnet, onet, sess, embeddings, images_placeholder, phase_train_placeholder)
+                    
+                    if len(face_patches) > 0:
+                        face_patches = np.stack(face_patches)
+                        feed_dict = {images_placeholder: face_patches, phase_train_placeholder: False}
+                        embs = sess.run(embeddings, feed_dict=feed_dict)
+    
+                        print('Matches in frame:')
+                        for i in range(len(embs)):
+                            bb = padded_bounding_boxes[i]
+    
+                            matching_id, dist = find_matching_id(id_dataset, embs[i, :])
+                            if matching_id:
+                                print('Hi %s! Distance: %1.4f' % (matching_id, dist))
+                                
+                            else:
+                                matching_id = 'Unkown'
+                                print('Unkown! Couldn\'t fint match.')
+                                
+                                '''Make folder and store the image'''
+                                try:
+    #                                os.makedirs(os.path.join(args.id_folder, str(count)))
+                                    dir1 = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count)
+                                    os.makedirs(dir1)
+    
+                                except OSError as e:
+                                    if e.errno != errno.EEXIST:
+                                        raise
+                                path_img = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count) + "\\"
+                                img_name = path_img + str(count) + '.png'
+                                cv2.imwrite(img_name, frame)
+    #                            start = time.time()
+                                entry_time = datetime.datetime.fromtimestamp(start).strftime('%c')
+                                df_tmp = pd.DataFrame([[str(count), entry_time, "Still_Inside"]], columns = df.columns)
+                                count = count + 1
+                                count_msg = "Evacuated staff: " + str(count)
+                                df = df.append(df_tmp)
+                                df.to_csv(f, header = False, index = False)
                             
 
                         if show_id:
                             font = cv2.FONT_HERSHEY_SIMPLEX
                             cv2.putText(frame, matching_id, (bb[0], bb[3]), font, 1, (255, 255, 255), 1, cv2.LINE_AA)
-
+        
                         if show_bb:
                             cv2.rectangle(frame, (bb[0], bb[1]), (bb[2], bb[3]), (255, 0, 0), 2)
-
+        
                         if show_landmarks:
                             for j in range(5):
                                 size = 1
                                 top_left = (int(landmarks[i, j]) - size, int(landmarks[i, j + 5]) - size)
                                 bottom_right = (int(landmarks[i, j]) + size, int(landmarks[i, j + 5]) + size)
                                 cv2.rectangle(frame, top_left, bottom_right, (255, 0, 255), 2)
-                else:
-                    print('Couldn\'t find a face')
+                    else:
+                        print('Couldn\'t find a face')
+                
+#                cv2.putText(frames, count_msg, (0, int(frame_height) - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1, cv2.LINE_AA)
+                cv2.putText(frames, count_msg, (0, 145), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 2, cv2.LINE_AA)
 
                 end = time.time()
 
@@ -231,9 +257,9 @@ def main(args):
 
                 if show_fps:
                     font = cv2.FONT_HERSHEY_SIMPLEX
-                    cv2.putText(frame, str(fps), (0, int(frame_height) - 5), font, 1, (255, 255, 255), 1, cv2.LINE_AA)
+                    cv2.putText(frames, str(fps), (0, int(frame_height) - 5), font, 1, (255, 255, 255), 1, cv2.LINE_AA)
 
-                cv2.imshow('frame', frame)
+                cv2.imshow('frame', frames)
 
                 key = cv2.waitKey(1)
                 if key == ord('q'):
