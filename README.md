@@ -35,4 +35,4 @@ Visualization hotkeys:
 *   i - toggle id
 *   f - toggle frames per second
 
-![alt text](https://github.com/habrman/FaceRecognition/blob/master/example.png)
+Forked from https://github.com/habrman/FaceRecognition
