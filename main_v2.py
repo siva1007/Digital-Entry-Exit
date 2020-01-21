@@ -23,7 +23,7 @@ import datetime
 
 
 def find_matching_id(id_dataset, embedding):
-    threshold = 1.3
+    threshold = 1.0
     min_dist = 10.0
     matching_id = None
 
@@ -132,6 +132,20 @@ def test_run(pnet, rnet, onet, sess, images_placeholder, phase_train_placeholder
         else:
             print('Couldn\'t fint match for %s' % (aligned_image_paths[i]))
 
+def show_missing(frames, ids, x_offset, y_frame_height):
+    y_offset = y_frame_height - 200
+    msg = "missing staff: "
+    cv2.putText(frames, msg, (0, 400), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 2, cv2.LINE_AA)
+#    x_offset = 0
+    for name in ids:
+        pics = os.listdir(name)
+        filename = name + '/' + pics[0]
+        image = cv2.imread(filename)
+        image = cv2.resize(image, (150, 150))
+        frames[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image
+        x_offset = x_offset + image.shape[1]
+    
+    
 
 def main(args):
     with tf.Graph().as_default():
@@ -154,12 +168,15 @@ def main(args):
             cap.set(4, 9600)
             cap.set(3, 12800)
             frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            int_frame_height = int(frame_height)
             
 #            img_path = os.path.join(args.id_folder)
-            f = open("D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv", 'a')
-            df = pd.read_csv("D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv")
+#            f = open("D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv", 'a')
+            f = open("C:\\Users\\Siva-Datta.Mannava\\OneDrive - Shell\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv", 'a')
+#            df = pd.read_csv("D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv")
+            df = pd.read_csv("C:\\Users\\Siva-Datta.Mannava\\OneDrive - Shell\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv")
 #            df = pd.read_csv(f)
-            print("df", df)
+#            print("df", df)
 #            columns = pd.read_csv("D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\log.csv", nrows = 0)
 #            print('columns', columns)
             count = 0
@@ -167,6 +184,9 @@ def main(args):
             show_bb = False
             show_id = True
             show_fps = False
+            total_people = 10
+            matched_ids = []
+            ids = os.listdir('ids')
             while(True):
                 start = time.time()
                 _, frames = cap.read()
@@ -174,7 +194,10 @@ def main(args):
                 gray = cv2.cvtColor(frames, cv2.COLOR_BGR2GRAY)
                 count_msg = "Evacuated staff: " + str(count)
                 emergency_msg = "Emergency Evacuation"
+                remaining_msg = "Remaining staff: " + str(total_people - count)
                 cv2.putText(frames, emergency_msg, (0, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (0,0,255), 3, cv2.LINE_AA)
+                
+                
                 
                 
                 faces = faceCascade.detectMultiScale(
@@ -185,6 +208,9 @@ def main(args):
                                                      flags=cv2.CASCADE_SCALE_IMAGE
                                                     )
                 imgs = []
+                if len(ids) < 5:
+                    show_missing(frames, ids, 0 , int_frame_height)
+                
                 for (x, y, w, h) in faces:
                     crop_img = frames[y -50:y+h+25, x-25:x+w+25]
                     imgs.append(crop_img)
@@ -206,6 +232,14 @@ def main(args):
                             if matching_id:
                                 print('Hi %s! Distance: %1.4f' % (matching_id, dist))
                                 
+                                if matching_id not in matched_ids:
+                                    matched_ids.append(matching_id)
+                                    count = count + 1
+                                    count_msg = "Evacuated staff: " + str(count)
+                                    remaining_msg = "Remaining staff: " + str(total_people - count)
+                                    if matching_id in ids:
+                                        ids.remove(matching_id)
+                                
                             else:
                                 matching_id = 'Unkown'
                                 print('Unkown! Couldn\'t fint match.')
@@ -213,13 +247,15 @@ def main(args):
                                 '''Make folder and store the image'''
                                 try:
     #                                os.makedirs(os.path.join(args.id_folder, str(count)))
-                                    dir1 = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count)
+#                                    dir1 = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count)
+                                    dir1 = "C:\\Users\\Siva-Datta.Mannava\\OneDrive - Shell\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count)
                                     os.makedirs(dir1)
     
                                 except OSError as e:
                                     if e.errno != errno.EEXIST:
                                         raise
-                                path_img = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count) + "\\"
+#                                path_img = "D:\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count) + "\\"
+                                path_img = "C:\\Users\\Siva-Datta.Mannava\\OneDrive - Shell\\Apps\\ml-comm\\smile\\facerecog\\FaceRecognition-master\\ids\\" + str(count) + "\\"
                                 img_name = path_img + str(count) + '.png'
                                 cv2.imwrite(img_name, frame)
     #                            start = time.time()
@@ -227,6 +263,7 @@ def main(args):
                                 df_tmp = pd.DataFrame([[str(count), entry_time, "Still_Inside"]], columns = df.columns)
                                 count = count + 1
                                 count_msg = "Evacuated staff: " + str(count)
+                                remaining_msg = "Remaining staff: " + str(total_people - count)
                                 df = df.append(df_tmp)
                                 df.to_csv(f, header = False, index = False)
                             
@@ -246,8 +283,10 @@ def main(args):
                                 cv2.rectangle(frame, top_left, bottom_right, (255, 0, 255), 2)
                     else:
                         print('Couldn\'t find a face')
-                
-#                cv2.putText(frames, count_msg, (0, int(frame_height) - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1, cv2.LINE_AA)
+                        if len(ids) < 5:
+                            show_missing(frames, ids, 0 , int_frame_height)
+
+                cv2.putText(frames, remaining_msg, (0, int_frame_height - 15), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1, cv2.LINE_AA)
                 cv2.putText(frames, count_msg, (0, 145), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 2, cv2.LINE_AA)
 
                 end = time.time()
