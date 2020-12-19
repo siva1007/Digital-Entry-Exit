@@ -101,7 +101,7 @@ def nms(boxes, threshold, method):
         w = np.maximum(0.0, xx2 - xx1 + 1)
         h = np.maximum(0.0, yy2 - yy1 + 1)
         inter = w * h
-        if method is 'Min':
+        if method == 'Min':
             o = inter / np.minimum(area[i], area[idx])
         else:
             o = inter / (area[i] + area[idx] - inter)
@@ -452,7 +452,7 @@ def detect_face(img, pnet, rnet, onet):
     minl = np.amin([h, w])
     m = 12.0 / minsize
     minl = minl * m
-    # creat scale pyramid
+    # create scale pyramid
     scales = []
     while minl >= 12:
         scales += [m * np.power(factor, factor_count)]

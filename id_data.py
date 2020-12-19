@@ -42,7 +42,3 @@ def align_id_dataset(id_dataset, pnet, rnet, onet):
 
     aligned_images = np.stack(aligned_images)
     return aligned_images
-
-
-if __name__ == "__main__":
-    main()
